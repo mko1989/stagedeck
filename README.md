@@ -1,6 +1,6 @@
 # StageDeck
 
-A versatile stage display application with support for NDI input and web streaming.
+A versatile stage display application with support for NDI input and web streaming. With Companion variables handling via OSC.
 
 ## Features
 
@@ -32,32 +32,16 @@ A versatile stage display application with support for NDI input and web streami
    python main.py
    ```
 
-## Building the Installer
-
-To create a standalone executable installer:
-
-1. Install development dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. Run the installer creation script:
-   ```bash
-   python create_installer.py
-   ```
-
-3. The installer will be created as `StageDeck Installer.zip`
-
 ## Usage
 
 1. Launch StageDeck
 2. Configure display settings in the Settings tab:
    - Choose monitor
    - Set background color or transparency
-   - Enable NDI input if needed
+   - Enable NDI input as background if needed
    - Configure web streaming
 
-3. Add and customize fields in the Fields tab
+3. Add and customize fields in the Fields tab that can be dynamically set and changed via OSC
 
 4. Use the Timer tab for countdown/countup functionality
 
