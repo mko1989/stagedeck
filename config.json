@@ -1,0 +1,33 @@
+{
+    "background_color": "#000000",
+    "fields": {
+        "time": {
+            "x": 0,
+            "y": 0,
+            "width": 200,
+            "height": 200,
+            "title_text": "the time now is:",
+            "title_font_family": "Arial",
+            "title_font_size": 20,
+            "title_font_color": "#FFFFFF",
+            "content_font_family": "Arial",
+            "content_font_size": 30,
+            "content_font_color": "#FFFFFF",
+            "show_border": true
+        },
+        "timer": {
+            "x": 200,
+            "y": 10,
+            "width": 300,
+            "height": 200,
+            "title_text": "Timer",
+            "title_font_family": "Arial",
+            "title_font_size": 24,
+            "title_font_color": "white",
+            "content_font_family": "Arial",
+            "content_font_size": 32,
+            "content_font_color": "white",
+            "show_border": true
+        }
+    }
+}
