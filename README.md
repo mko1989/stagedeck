@@ -1,8 +1,8 @@
-#Introduction
+# Introduction
 
 StageDeck is a versatile stage display application designed for live events and broadcasts. It supports NDI input and web streaming, making it an ideal solution for dynamic stage displays and real-time updates.
 
-##Features
+## Features
 
 Transparent or opaque window display: Choose between a transparent or solid background to best suit your stage environment.
 NDI input support: Integrate live video feeds directly into your display.
@@ -13,7 +13,7 @@ Customizable fields and text display: Create and customize fields that can be up
 OSC control support: Use OSC messages to dynamically change display content.
 
 
-##Installation
+## Installation
 
 
 Option 1: Install from Executable (Recommended)
@@ -31,7 +31,7 @@ bash
 python main.py
 
 
-##Usage
+## Usage
 
 
 Launch StageDeck
@@ -49,7 +49,7 @@ Example: /field/time/12:24:56
 For best results, create a trigger in Companion on variable change and choose send OSC as an action.
 Use the Timer tab for countdown/countup functionality
 
-##Web Streaming
+## Web Streaming
 
 When web streaming is enabled, access the display from any device on your network:
 
@@ -57,7 +57,7 @@ Enable web streaming in the Settings tab
 Access http://<computer-ip>:8181 from any web browser
 The display will update in real-time with minimal latency
 
-##Development
+## Development
 
 Main application: main.py
 Web server component: web_server.py
