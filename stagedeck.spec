@@ -15,12 +15,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
-        ('sounds/warning1.wav', 'sounds'),
-        ('sounds/warning2.wav', 'sounds'),
-        ('sounds/warning3.wav', 'sounds'),
-        ('sounds/end1.wav', 'sounds'),
-        ('sounds/end2.wav', 'sounds'),
-        ('sounds/end3.wav', 'sounds'),
+        ('sounds/*', 'sounds'),
         *pyqt_plugins,
     ],
     hiddenimports=[
@@ -37,7 +32,9 @@ a = Analysis(
         'threading',
         'json',
         'websockets',
-        'winsound',
+        'pygame',
+        'pygame.mixer',
+        'pygame.mixer_music',
         'fastapi',
         'uvicorn',
         'PIL',
@@ -56,7 +53,7 @@ a = Analysis(
     noarchive=False
 )
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure, cipher=block_cipher)
 
 exe = EXE(
     pyz,
@@ -64,11 +61,11 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name='StageDeck',
-    debug=True,
+    debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,  # Keep console for debugging
+    console=False,  # Set this to False to hide the console window
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

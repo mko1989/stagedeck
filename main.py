@@ -15,7 +15,19 @@ import asyncio
 from PIL import Image
 from io import BytesIO
 from web_server import start_server, broadcast_frame
-import winsound
+import pygame.mixer
+import os
+
+def get_resource_path(relative_path):
+    """Get absolute path to resource for both dev and PyInstaller"""
+    if getattr(sys, 'frozen', False):
+        # Running in a bundle
+        base_path = sys._MEIPASS
+    else:
+        # Running in normal Python environment
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    print(f"Base path: {base_path}")
+    return os.path.join(base_path, relative_path)
 
 class TextItem:
     def __init__(self, text="", font_family="Arial", font_size=20, font_color="white"):
@@ -165,13 +177,20 @@ class DisplayWindow(QMainWindow):
         """Enable or disable NDI reception"""
         self.ndi_enabled = enabled
         if enabled:
-            self.ndi_timer.start()
+            if not self.ndi_enabled:
+                if self.ndi_receiver.initialize():
+                    self.ndi_enabled = True
+                    self.ndi_timer.start()
+                    print("NDI initialized, searching for sources...")
+                    return True
+                return False
         else:
+            self.ndi_enabled = False
             self.ndi_timer.stop()
             self.ndi_frame = None
-            self.original_ndi_size = None
-        self.update()
-            
+            self.update()
+        return True
+        
     def _update_ndi_frame(self, frame):
         """Update NDI frame while preserving aspect ratio"""
         if frame is not None:
@@ -698,14 +717,29 @@ class MainWindow(QMainWindow):
         self.overtime = 0  # Track overtime seconds
         self.blink_state = False
         self.timer = None
-        self.blink_timer = None
+        self.blink_timer = QTimer()
+        self.blink_timer.timeout.connect(self._toggle_timer_visibility)
+        self.blink_visible = True
+        self.in_overtime = False
         
         # Initialize sound variables
-        self.warning_sound_path = "sounds/warning1.wav"
-        self.end_sound_path = "sounds/end1.wav"
-        self.warning_sound_thread = None
+        self.warning_sound = None
+        self.end_sound = None
         self.warning_sound_playing = False
+        self.test_warning_playing = False
+        self.test_end_playing = False
         self._sound_lock = threading.Lock()  # Lock for thread safety
+        
+        # Default sound paths (using MP3s)
+        self.warning_sound_path = get_resource_path(os.path.join('sounds', 'warning1.mp3'))
+        self.end_sound_path = get_resource_path(os.path.join('sounds', 'end1.mp3'))
+        
+        print(f"Warning sound path: {self.warning_sound_path}")
+        print(f"End sound path: {self.end_sound_path}")
+        
+        # Initialize pygame mixer
+        pygame.mixer.init()
+        pygame.mixer.music.set_volume(1.0)
         
         # Create main layout
         central_widget = QWidget()
@@ -997,9 +1031,9 @@ class MainWindow(QMainWindow):
         self.warning_sound_browse.clicked.connect(self.browse_warning_sound)
         warning_sound_layout.addWidget(self.warning_sound_browse)
         
-        self.warning_sound_test = QPushButton("Test")
-        self.warning_sound_test.clicked.connect(self.test_warning_sound)
-        warning_sound_layout.addWidget(self.warning_sound_test)
+        self.warning_test_button = QPushButton("Test")
+        self.warning_test_button.clicked.connect(self.test_warning_sound)
+        warning_sound_layout.addWidget(self.warning_test_button)
         warning_controls_layout.addLayout(warning_sound_layout)
         
         warning_time_layout.addLayout(warning_controls_layout)
@@ -1035,13 +1069,20 @@ class MainWindow(QMainWindow):
         self.end_sound_browse.clicked.connect(self.browse_end_sound)
         end_sound_layout.addWidget(self.end_sound_browse)
         
-        self.end_sound_test = QPushButton("Test")
-        self.end_sound_test.clicked.connect(self.test_end_sound)
-        end_sound_layout.addWidget(self.end_sound_test)
+        self.end_test_button = QPushButton("Test")
+        self.end_test_button.clicked.connect(self.test_end_sound)
+        end_sound_layout.addWidget(self.end_test_button)
         end_controls_layout.addLayout(end_sound_layout)
         
         end_warning_layout.addLayout(end_controls_layout)
         warning_layout.addLayout(end_warning_layout)
+        
+        # Overtime settings
+        overtime_layout = QHBoxLayout()
+        self.enable_overtime = QCheckBox("Enable Overtime Counting")
+        self.enable_overtime.setChecked(True)
+        overtime_layout.addWidget(self.enable_overtime)
+        warning_layout.addLayout(overtime_layout)
         
         warning_group.setLayout(warning_layout)
         timer_layout.addWidget(warning_group)
@@ -1070,6 +1111,7 @@ class MainWindow(QMainWindow):
         
         self.timer_stop_button = QPushButton("Stop")
         self.timer_stop_button.clicked.connect(self.stop_timer)
+        self.timer_stop_button.setEnabled(True)
         timer_controls_layout.addWidget(self.timer_stop_button)
         
         timer_layout.addLayout(timer_controls_layout)
@@ -1190,16 +1232,21 @@ class MainWindow(QMainWindow):
             # Get or create field
             field = self.display_window.fields.get(field_id)
             if not field:
-                # Create field with default values at top-left
-                self.display_window.add_field(
-                    field_id,
-                    x=100, y=100,  # Default position near top-left
-                    width=200, height=200,
-                    title_text=field_id
-                )
-                self.fields_list.addItem(field_id)
-                field = self.display_window.fields[field_id]
-            
+                # Create field on main thread
+                if QThread.currentThread() != QApplication.instance().thread():
+                    # Schedule field creation on main thread
+                    QMetaObject.invokeMethod(self, "_create_field_from_osc",
+                                          Qt.ConnectionType.BlockingQueuedConnection,
+                                          Q_ARG(str, field_id))
+                    field = self.display_window.fields.get(field_id)
+                    if not field:
+                        return
+                else:
+                    self._create_field_from_osc(field_id)
+                    field = self.display_window.fields.get(field_id)
+                    if not field:
+                        return
+                
             # Handle different message types based on address
             if len(parts) > 3:
                 property_name = parts[3]
@@ -1232,6 +1279,28 @@ class MainWindow(QMainWindow):
             
         except Exception as e:
             print(f"Error handling OSC message: {e}")
+            
+    @pyqtSlot(str)
+    def _create_field_from_osc(self, field_id):
+        """Create a new field from OSC message on the main thread"""
+        try:
+            field = self.display_window.add_field(
+                field_id,
+                x=200, y=10,  # Default position
+                width=300, height=200,  # Default size
+                title_text=field_id,
+                title_font_family="Arial",
+                title_font_size=24,
+                title_font_color="white",
+                content_font_family="Arial",
+                content_font_size=32,
+                content_font_color="white",
+                show_border=True
+            )
+            self.fields_list.addItem(field_id)
+            self.save_config()  # Save the new field configuration
+        except Exception as e:
+            print(f"Error creating field from OSC: {e}")
             
     def choose_background_color(self):
         color = QColorDialog.getColor(QColor(self.display_window._background_color))
@@ -1442,8 +1511,8 @@ class MainWindow(QMainWindow):
             # Create the field
             field = self.display_window.add_field(
                 "timer",
-                x=10, y=10,  # Position in top-left corner
-                width=200, height=100,
+                x=200, y=10,  # Position near top
+                width=300, height=200,  # Larger default size
                 title_text="Timer",
                 title_font_size=24,
                 content_font_size=32
@@ -1483,7 +1552,7 @@ class MainWindow(QMainWindow):
         self.remove_timer_button.setEnabled(has_timer)
         
     def start_timer(self):
-        """Start/stop timer"""
+        """Start the timer"""
         if not self.timer_running:
             # Calculate total seconds
             total_seconds = (self.hours_input.value() * 3600 + 
@@ -1494,58 +1563,66 @@ class MainWindow(QMainWindow):
                 return
                 
             self.remaining_time = total_seconds
-            self.overtime = 0  # Reset overtime
             self.timer_running = True
-            self.timer_start_button.setText("Stop")
+            self.in_overtime = False
+            self.overtime = 0
             
-            # Create and start main timer
             if not self.timer:
                 self.timer = QTimer()
                 self.timer.timeout.connect(self.update_timer)
             self.timer.start(1000)  # Update every second
             
-            # Create blink timer if needed
-            if not self.blink_timer:
-                self.blink_timer = QTimer()
-                self.blink_timer.timeout.connect(self.blink_timer_text)
+            # Update button states
+            self.timer_start_button.setText("Stop")
+            self.timer_pause_button.setEnabled(True)
+            self.timer_stop_button.setEnabled(True)
             
             # Reset any previous styling
             if "timer" in self.display_window.fields:
                 self.update_timer_field_color("white")
+                self.display_window.fields["timer"].setVisible(True)
         else:
+            # Stop was clicked (since button text is "Stop")
             self.stop_timer()
             
     def stop_timer(self):
         """Stop the timer"""
-        if self.timer and self.timer.isActive():
+        if self.timer:
             self.timer.stop()
-        if self.blink_timer and self.blink_timer.isActive():
-            self.blink_timer.stop()
-            
         self.timer_running = False
-        self.timer_start_button.setText("Start")
-        
+        self.in_overtime = False
+        self.overtime = 0
+        if hasattr(self, 'blink_timer') and self.blink_timer:
+            self.blink_timer.stop()
+        if "timer" in self.display_window.fields:
+            self.display_window.fields["timer"].setVisible(True)
+            self.update_timer_field_color("white")
+            
         # Reset timer to input values
         total_seconds = (self.hours_input.value() * 3600 + 
                         self.minutes_input.value() * 60 + 
                         self.seconds_input.value())
         self.remaining_time = total_seconds
-        self.overtime = 0  # Reset overtime
-        
-        # Reset display color
-        self.update_timer_field_color("white")
         self.update_timer_display()
+        
+        # Update button states
+        self.timer_start_button.setText("Start")
+        self.timer_pause_button.setEnabled(False)
+        self.timer_stop_button.setEnabled(True)
         
         # Stop any playing sounds
         self.stop_warning_sound()
-        winsound.PlaySound(None, winsound.SND_PURGE)  # Stop any playing sounds
         
     def pause_timer(self):
         """Pause the timer"""
-        if self.timer and self.timer.isActive():
+        if self.timer_running:
             self.timer.stop()
             self.timer_running = False
-            self.timer_start_button.setText("Start")
+            self.timer_pause_button.setText("Resume")
+        else:
+            self.timer.start(1000)
+            self.timer_running = True
+            self.timer_pause_button.setText("Pause")
             
     def update_timer(self):
         """Update timer countdown"""
@@ -1562,24 +1639,28 @@ class MainWindow(QMainWindow):
             # Change color and play warning sound when warning time is reached
             if self.enable_warning.isChecked() and self.remaining_time <= self.warning_time.value() and self.remaining_time > 1:
                 self.update_timer_field_color("yellow")
-                if self.enable_warning_sound.isChecked() and not self.warning_sound_playing:
-                    self.warning_sound_playing = True
-                    self.warning_sound_thread = threading.Thread(target=self.play_warning_sound)
-                    self.warning_sound_thread.daemon = True
-                    self.warning_sound_thread.start()
+                if self.enable_warning_sound.isChecked():
+                    QTimer.singleShot(0, self.play_warning_sound)
                     
             self.update_timer_display()
                 
             # Handle timer completion
             if self.remaining_time == 0:
-                # Start blinking if enabled
+                self.update_timer_field_color("red")
+                if self.enable_end_sound.isChecked():
+                    QTimer.singleShot(0, self.play_end_sound)
                 if self.enable_end_warning.isChecked():
-                    self.blink_timer.start(500)  # Blink every 0.5 seconds
-                    
-                    # Play end sound if enabled
-                    if self.enable_end_sound.isChecked():
-                        threading.Thread(target=self.play_end_sound, daemon=True).start()
-        else:
+                    if not hasattr(self, 'blink_timer'):
+                        self.blink_timer = QTimer()
+                        self.blink_timer.timeout.connect(self._toggle_timer_visibility)
+                        self.blink_visible = True
+                    self.blink_timer.start(500)  # Start blinking
+                if self.enable_overtime.isChecked():
+                    self.overtime = 0
+                    self.in_overtime = True
+                else:
+                    self.stop_timer()
+        elif self.in_overtime and self.enable_overtime.isChecked():
             # In overtime
             self.overtime += 1
             self.update_timer_display()
@@ -1597,25 +1678,35 @@ class MainWindow(QMainWindow):
         
     def update_timer_display(self):
         """Update timer display"""
-        if not hasattr(self, 'remaining_time'):
-            self.remaining_time = 0
+        if "timer" in self.display_window.fields:
+            timer_field = self.display_window.fields["timer"]
             
-        if self.remaining_time > 0:
-            # Normal countdown
-            hours = self.remaining_time // 3600
-            minutes = (self.remaining_time % 3600) // 60
-            seconds = self.remaining_time % 60
-            time_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-        else:
-            # Overtime display with plus sign
-            hours = self.overtime // 3600
-            minutes = (self.overtime % 3600) // 60
-            seconds = self.overtime % 60
-            time_str = f"+{hours:02d}:{minutes:02d}:{seconds:02d}"
+            if self.remaining_time > 0 or not self.in_overtime:
+                # Normal countdown
+                minutes = self.remaining_time // 60
+                seconds = self.remaining_time % 60
+                time_str = f"{minutes:02d}:{seconds:02d}"
+            else:
+                # Overtime display with + sign
+                overtime_seconds = self.overtime
+                minutes = overtime_seconds // 60
+                seconds = overtime_seconds % 60
+                time_str = f"+{minutes:02d}:{seconds:02d}"
+                
+            timer_field.content.text = time_str
+            timer_field.update()
             
-        self.timer_display.setText(time_str)
-        self.update_timer_field_text(time_str)
-        
+        # Update timer in GUI window
+        if hasattr(self, 'timer_display'):
+            if self.remaining_time > 0 or not self.in_overtime:
+                minutes = self.remaining_time // 60
+                seconds = self.remaining_time % 60
+                self.timer_display.setText(f"{minutes:02d}:{seconds:02d}")
+            else:
+                minutes = self.overtime // 60
+                seconds = self.overtime % 60
+                self.timer_display.setText(f"+{minutes:02d}:{seconds:02d}")
+            
     def set_timer_duration(self, duration):
         """Set timer duration in seconds"""
         self.stop_timer()  # Stop any running timer
@@ -1665,7 +1756,7 @@ class MainWindow(QMainWindow):
             self.browse_warning_sound()
         else:
             sound_num = int(text.split()[-1])
-            self.warning_sound_path = f"sounds/warning{sound_num}.wav"
+            self.warning_sound_path = f"sounds/warning{sound_num}.mp3"
             
     def end_sound_changed(self, text):
         """Handle end sound selection change"""
@@ -1673,58 +1764,95 @@ class MainWindow(QMainWindow):
             self.browse_end_sound()
         else:
             sound_num = int(text.split()[-1])
-            self.end_sound_path = f"sounds/end{sound_num}.wav"
+            self.end_sound_path = f"sounds/end{sound_num}.mp3"
 
     def play_warning_sound(self):
         """Play warning sound in a loop"""
         try:
-            # Play sound with loop flag - will continue until explicitly stopped
-            winsound.PlaySound(self.warning_sound_path, winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_LOOP)
-            # Wait until we need to stop
-            while self.warning_sound_playing and self.timer_running:
-                time.sleep(0.1)
-        finally:
-            self.warning_sound_playing = False
-            winsound.PlaySound(None, winsound.SND_PURGE)
+            with self._sound_lock:
+                if not self.warning_sound_playing and os.path.exists(self.warning_sound_path):
+                    try:
+                        # Load and play the sound
+                        pygame.mixer.music.load(self.warning_sound_path)
+                        pygame.mixer.music.play(-1)  # -1 means loop indefinitely
+                        self.warning_sound_playing = True
+                        print("Started playing warning sound")
+                    except Exception as e:
+                        print(f"Error playing warning sound: {e}")
+        except Exception as e:
+            print(f"Error in play_warning_sound: {e}")
             
     def play_end_sound(self):
         """Play end sound once"""
         try:
-            # First ensure warning sound is stopped
-            winsound.PlaySound(None, winsound.SND_PURGE)
-            time.sleep(0.1)  # Small delay to ensure warning sound is stopped
-            # Play end sound
-            winsound.PlaySound(self.end_sound_path, winsound.SND_FILENAME | winsound.SND_ASYNC)
-        except:
-            pass
+            if os.path.exists(self.end_sound_path):
+                # Stop any playing warning sound
+                self.stop_warning_sound()
+                
+                try:
+                    # Load and play the sound
+                    pygame.mixer.music.load(self.end_sound_path)
+                    pygame.mixer.music.play(0)  # 0 means play once
+                    print("Started playing end sound")
+                except Exception as e:
+                    print(f"Error playing end sound: {e}")
+        except Exception as e:
+            print(f"Error in play_end_sound: {e}")
             
     def stop_warning_sound(self):
         """Stop warning sound"""
-        self.warning_sound_playing = False
-        try:
-            winsound.PlaySound(None, winsound.SND_PURGE)
-        except:
-            pass
-            
+        with self._sound_lock:
+            if self.warning_sound_playing:
+                pygame.mixer.music.stop()
+                self.warning_sound_playing = False
+                print("Stopped warning sound")
+            # Also reset test buttons if they were playing
+            if self.test_warning_playing:
+                self.test_warning_playing = False
+                self.warning_test_button.setText("Test")
+            if self.test_end_playing:
+                self.test_end_playing = False
+                self.end_test_button.setText("Test")
+                
     def test_warning_sound(self):
         """Test warning sound"""
-        try:
-            winsound.PlaySound(self.warning_sound_path, winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT)
-        except:
-            QMessageBox.warning(self, "Sound Error", "Could not play warning sound file.")
-            
+        if not self.test_warning_playing:
+            if os.path.exists(self.warning_sound_path):
+                try:
+                    pygame.mixer.music.load(self.warning_sound_path)
+                    pygame.mixer.music.play(0)  # Play once for testing
+                    self.test_warning_playing = True
+                    self.warning_test_button.setText("Stop")
+                except Exception as e:
+                    print(f"Error testing warning sound: {e}")
+        else:
+            pygame.mixer.music.stop()
+            self.test_warning_playing = False
+            self.warning_test_button.setText("Test")
+                
     def test_end_sound(self):
         """Test end sound"""
-        try:
-            winsound.PlaySound(self.end_sound_path, winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT)
-        except:
-            QMessageBox.warning(self, "Sound Error", "Could not play end sound file.")
+        if not self.test_end_playing:
+            if os.path.exists(self.end_sound_path):
+                try:
+                    pygame.mixer.music.load(self.end_sound_path)
+                    pygame.mixer.music.play(0)  # Play once for testing
+                    self.test_end_playing = True
+                    self.end_test_button.setText("Stop")
+                except Exception as e:
+                    print(f"Error testing end sound: {e}")
+        else:
+            pygame.mixer.music.stop()
+            self.test_end_playing = False
+            self.end_test_button.setText("Test")
             
     def browse_warning_sound(self):
         """Browse for custom warning sound"""
         file_name, _ = QFileDialog.getOpenFileName(
-            self, "Select Warning Sound", "",
-            "Sound Files (*.wav *.mp3);;All Files (*.*)"
+            self,
+            "Select Warning Sound",
+            "",
+            "Sound Files (*.mp3 *.wav);;All Files (*.*)"
         )
         if file_name:
             self.warning_sound_path = file_name
@@ -1733,13 +1861,22 @@ class MainWindow(QMainWindow):
     def browse_end_sound(self):
         """Browse for custom end sound"""
         file_name, _ = QFileDialog.getOpenFileName(
-            self, "Select End Sound", "",
-            "Sound Files (*.wav *.mp3);;All Files (*.*)"
+            self,
+            "Select End Sound",
+            "",
+            "Sound Files (*.mp3 *.wav);;All Files (*.*)"
         )
         if file_name:
             self.end_sound_path = file_name
             self.end_sound_combo.setCurrentText("Custom...")
             
+    def _toggle_timer_visibility(self):
+        """Toggle timer visibility for blinking effect"""
+        if "timer" in self.display_window.fields:
+            timer_field = self.display_window.fields["timer"]
+            self.blink_visible = not self.blink_visible
+            timer_field.setVisible(self.blink_visible)
+        
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = MainWindow()
