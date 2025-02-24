@@ -41,8 +41,10 @@ A versatile stage display application with support for NDI input and web streami
    - Enable NDI input as background if needed
    - Configure web streaming
 
-3. Add and customize fields in the Fields tab that can be dynamically set and changed via OSC
-
+3. Add and customize fields in the Fields tab that can be dynamically set and changed via OSC.
+OSC messages should look like /field/<field-id> value
+example: /field/time/12:24:56
+For best results create a trigger in Companion, on variable change: variable you want to show. Then as an action choose send OSC.
 4. Use the Timer tab for countdown/countup functionality
 
 ### Web Streaming
