@@ -1,62 +1,56 @@
-# StageDeck
+#Introduction
+StageDeck is a versatile stage display application designed for live events and broadcasts. It supports NDI input and web streaming, making it an ideal solution for dynamic stage displays and real-time updates.
 
-A versatile stage display application with support for NDI input and web streaming. With Companion variables handling via OSC.
+##Features
+Transparent or opaque window display: Choose between a transparent or solid background to best suit your stage environment.
+NDI input support: Integrate live video feeds directly into your display.
+Web streaming capability: Stream your display to any device on your network for remote viewing.
+Timer functionality: Use countdown or countup timers for time management.
+Timer features warning change color, end time change color and blinking. Playing warning time sound, playing end time sound.
+Customizable fields and text display: Create and customize fields that can be updated in real-time.
+OSC control support: Use OSC messages to dynamically change display content.
 
-## Features
 
-- Transparent or opaque window display
-- NDI input support
-- Web streaming capability
-- Timer functionality
-- Customizable fields and text display
-- OSC control support
+##Installation
+Option 1: Install from Executable (Recommended)
+Download the latest StageDeck Installer.zip
+Extract the zip file
+Run StageDeck.exe
+Option 2: Install from Source
+Clone this repository
+Install Python 3.9 or later
+Install dependencies:
+bash
+pip install -r requirements.txt
+Run the application:
+bash
+python main.py
 
-## Installation
 
-### Option 1: Install from Executable (Recommended)
+##Usage
+Launch StageDeck
 
-1. Download the latest `StageDeck Installer.zip`
-2. Extract the zip file
-3. Run `StageDeck.exe`
+Configure display settings in the Settings tab:
 
-### Option 2: Install from Source
+Choose monitor
+Set background color or transparency
+Enable NDI input as background if needed
+Configure web streaming
+Add and customize fields in the Fields tab that can be dynamically set and changed via OSC.
 
-1. Clone this repository
-2. Install Python 3.9 or later
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Run the application:
-   ```bash
-   python main.py
-   ```
-
-## Usage
-
-1. Launch StageDeck
-2. Configure display settings in the Settings tab:
-   - Choose monitor
-   - Set background color or transparency
-   - Enable NDI input as background if needed
-   - Configure web streaming
-
-3. Add and customize fields in the Fields tab that can be dynamically set and changed via OSC.
 OSC messages should look like /field/<field-id> value
-example: /field/time/12:24:56
-For best results create a trigger in Companion, on variable change: variable you want to show. Then as an action choose send OSC.
-4. Use the Timer tab for countdown/countup functionality
+Example: /field/time/12:24:56
+For best results, create a trigger in Companion on variable change and choose send OSC as an action.
+Use the Timer tab for countdown/countup functionality
 
-### Web Streaming
-
+##Web Streaming
 When web streaming is enabled, access the display from any device on your network:
-1. Enable web streaming in the Settings tab
-2. Access `http://<computer-ip>:8181` from any web browser
-3. The display will update in real-time with minimal latency
 
-## Development
+Enable web streaming in the Settings tab
+Access http://<computer-ip>:8181 from any web browser
+The display will update in real-time with minimal latency
 
-- Main application: `main.py`
-- Web server component: `web_server.py`
-- Installer creation: `create_installer.py`
-- PyInstaller spec: `companion_viewer.spec`
+##Development
+Main application: main.py
+Web server component: web_server.py
+PyInstaller spec: companion_viewer.spec
