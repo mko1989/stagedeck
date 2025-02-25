@@ -8,13 +8,13 @@ class OSCClient:
     This client sends field IDs, content, and timer information.
     """
     
-    def __init__(self, ip="127.0.0.1", port=9000):
+    def __init__(self, ip="127.0.0.1", port=9292):
         """
         Initialize the OSC client with target IP and port.
         
         Args:
             ip (str): Target IP address (default: 127.0.0.1)
-            port (int): Target OSC port (default: 9000)
+            port (int): Target OSC port (default: 9292)
         """
         self.ip = ip
         self.port = port

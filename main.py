@@ -815,11 +815,11 @@ class MainWindow(QMainWindow):
         self.display_window.show()
         
         # Initialize OSC client for sending data to Bitfocus Companion
-        self.osc_client = OSCClient()
+        self.osc_client = OSCClient(port=9292)
         self.osc_client_enabled = False
         
         # Initialize OSC server variables
-        self.osc_port = 8000
+        self.osc_port = 9191
         self.server = None
         self.server_thread = None
         
@@ -877,7 +877,7 @@ class MainWindow(QMainWindow):
         port_layout.addWidget(QLabel("OSC Port:"))
         self.port_input = QSpinBox()
         self.port_input.setRange(1024, 65535)
-        self.port_input.setValue(8000)
+        self.port_input.setValue(9191)
         self.port_input.valueChanged.connect(self.update_port)
         port_layout.addWidget(self.port_input)
         osc_layout.addLayout(port_layout)
@@ -909,7 +909,7 @@ class MainWindow(QMainWindow):
         companion_port_layout.addWidget(QLabel("Companion OSC Port:"))
         self.companion_port_input = QSpinBox()
         self.companion_port_input.setRange(1024, 65535)
-        self.companion_port_input.setValue(9000)
+        self.companion_port_input.setValue(9292)
         companion_port_layout.addWidget(self.companion_port_input)
         companion_layout.addLayout(companion_port_layout)
         
