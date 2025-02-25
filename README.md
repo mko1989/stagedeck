@@ -61,6 +61,17 @@ Enable web streaming in the Settings tab
 Access http://<computer-ip>:8181 from any web browser
 The display will update in real-time with minimal latency
 
+## ScreenShots
+
+![Main window](https://github.com/mko1989/stagedeck/blob/main/screenshots/s1.png)
+![Timer](https://github.com/mko1989/stagedeck/blob/main/screenshots/s3.png)
+![Setting up a field](https://github.com/mko1989/stagedeck/blob/main/screenshots/s4.png)
+![Companion config](https://github.com/mko1989/stagedeck/blob/main/screenshots/s5.png)
+![Trigger setup](https://github.com/mko1989/stagedeck/blob/main/screenshots/s6.png)
+![Companion variable in a field](https://github.com/mko1989/stagedeck/blob/main/screenshots/s7.png)
+![Transparent background](https://github.com/mko1989/stagedeck/blob/main/screenshots/s8.png)
+![NDI background](https://github.com/mko1989/stagedeck/blob/main/screenshots/s9.png)
+
 ## Development
 
 Main application: main.py
