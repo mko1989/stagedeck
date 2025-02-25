@@ -70,14 +70,14 @@ jobs:
 
     - name: Upload Windows Artifact
       if: matrix.os == 'windows-latest'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: StageDeck-windows
         path: dist/StageDeck-windows.zip
 
     - name: Upload macOS Artifact
       if: matrix.os == 'macos-latest'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: StageDeck-macos
         path: dist/StageDeck-macos.zip
