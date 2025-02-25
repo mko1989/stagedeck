@@ -11,5 +11,5 @@ python-multipart==0.0.9
 Pillow==11.1.0
 aiofiles==23.2.1
 pyinstaller
-numpy==1.26.4
+numpy==2.2.3
 opencv-python==4.8.0.74

@@ -47,7 +47,7 @@ jobs:
         # Install platform-specific dependencies
         if [[ "$RUNNER_OS" == "Windows" ]]; then
           # Force binary installations for Windows
-          pip install --only-binary :all: pygame==2.6.1 Pillow==11.1.0 numpy==1.26.4
+          pip install --only-binary :all: pygame==2.6.1 Pillow==11.1.0 numpy==2.2.3
         elif [[ "$RUNNER_OS" == "macOS" ]]; then
           # Set up pkg-config for SDL2
           export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:$PKG_CONFIG_PATH"
