@@ -48,6 +48,7 @@ Configure web streaming
 Add and customize fields in the Fields tab that can be dynamically set and changed via OSC.
 
 OSC messages should look like /field/(field-id)/content/(value)
+
 Example: /field/time/content/12:24:56
 For best results, create a trigger in Companion on variable change and choose send OSC as an action.
 Use the Timer tab for countdown/countup functionality
