@@ -16,6 +16,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('sounds/*', 'sounds'),
+        ('web_server.py', '.'),
         *pyqt_plugins,
     ],
     hiddenimports=[
@@ -42,6 +43,24 @@ a = Analysis(
         'cv2',
         'multipart',
         'aiofiles',
+        'fastapi.responses',
+        'fastapi.staticfiles',
+        'fastapi.websockets',
+        'uvicorn.config',
+        'uvicorn.main',
+        'uvicorn.loops',
+        'uvicorn.protocols',
+        'uvicorn.lifespan',
+        'uvicorn.logging',
+        'starlette',
+        'starlette.routing',
+        'starlette.applications',
+        'starlette.responses',
+        'starlette.websockets',
+        'starlette.types',
+        'starlette.datastructures',
+        'starlette.staticfiles',
+        'web_server'
     ],
     hookspath=[],
     hooksconfig={},
@@ -65,7 +84,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False,  # Set this to False to hide the console window
+    console=True,  # Set this to False to hide the console window
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

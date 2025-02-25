@@ -14,7 +14,6 @@ import cv2
 import asyncio
 from PIL import Image
 from io import BytesIO
-from web_server import start_server, broadcast_frame
 import pygame.mixer
 import os
 
@@ -163,6 +162,26 @@ class DisplayWindow(QMainWindow):
         self.web_timer = QTimer()
         self.web_timer.timeout.connect(self.broadcast_frame)
         self.web_timer.setInterval(33)  # ~30fps
+        self.server_thread = None
+        self.web_server = None
+        
+        # Import web server module
+        try:
+            web_server_path = get_resource_path('web_server.py')
+            print(f"Loading web server from: {web_server_path}")
+            import importlib.util
+            import sys
+            
+            spec = importlib.util.spec_from_file_location("web_server", web_server_path)
+            web_server = importlib.util.module_from_spec(spec)
+            sys.modules["web_server"] = web_server
+            spec.loader.exec_module(web_server)
+            self.web_server = web_server
+            print("Web server module loaded successfully")
+        except Exception as e:
+            print(f"Error loading web server module: {e}")
+            import traceback
+            traceback.print_exc()
         
         self.update_background()
 
@@ -423,25 +442,97 @@ class DisplayWindow(QMainWindow):
         """Enable or disable web streaming"""
         self.web_enabled = enabled
         if enabled:
+            # Start web server if not already running
+            if not self.server_thread or not self.server_thread.is_alive():
+                def run_server():
+                    try:
+                        print("Starting web server...")
+                        # Get port from main window
+                        port = 8181  # Default port
+                        main_window = QApplication.activeWindow()
+                        if hasattr(main_window, 'web_port_input'):
+                            port = main_window.web_port_input.value()
+                        
+                        self.web_server.start_server(host="0.0.0.0", port=port)
+                    except Exception as e:
+                        print(f"Error starting web server: {e}")
+                        import traceback
+                        traceback.print_exc()
+                
+                self.server_thread = threading.Thread(target=run_server, daemon=True)
+                self.server_thread.start()
+            
+            # Start frame broadcasting
             self.web_timer.start()
         else:
+            # Stop frame broadcasting
             self.web_timer.stop()
+            
+            # TODO: Add clean shutdown of web server if needed
+            # Currently relying on daemon thread to terminate with app
             
     def broadcast_frame(self):
         """Capture and broadcast current window content"""
         if not self.web_enabled:
             return
             
-        # Create pixmap from window
-        pixmap = self.grab()
-        
-        # Convert to JPEG bytes
-        img_buffer = QBuffer()
-        img_buffer.open(QBuffer.ReadWrite)
-        pixmap.save(img_buffer, "JPEG", quality=85)
-        
-        # Broadcast frame
-        broadcast_frame(img_buffer.data().data())
+        try:
+            # Create a QImage with the window size
+            image = QImage(self.size(), QImage.Format_ARGB32)
+            image.fill(self._background_color)
+            
+            # Create painter for the image
+            painter = QPainter(image)
+            
+            # Draw all content
+            self.render(painter)
+            
+            # Draw fields
+            for field in self.fields.values():
+                field_pos = field.pos()
+                field_size = field.size()
+                
+                # Create temporary image for field
+                field_image = QImage(field_size, QImage.Format_ARGB32)
+                field_image.fill(Qt.transparent)
+                
+                # Render field to its image
+                field_painter = QPainter(field_image)
+                field.render(field_painter)
+                field_painter.end()
+                
+                # Draw field image at correct position
+                painter.drawImage(field_pos, field_image)
+            
+            # Draw NDI frame if present
+            if self.ndi_frame is not None:
+                scaled_frame = self.get_scaled_ndi_frame()
+                if scaled_frame is not None:
+                    painter.drawImage(scaled_frame[0], scaled_frame[1])
+            
+            painter.end()
+            
+            # Convert to JPEG
+            img_buffer = QBuffer()
+            img_buffer.open(QBuffer.ReadWrite)
+            image.save(img_buffer, "JPEG", quality=85)
+            
+            # Use stored web_server module
+            if hasattr(self, 'web_server'):
+                self.web_server.broadcast_frame(img_buffer.data().data())
+            else:
+                print("Web server module not available")
+        except Exception as e:
+            print(f"Error broadcasting frame: {e}")
+            import traceback
+            traceback.print_exc()
+            
+    def update(self):
+        super().update()
+        if self.ndi_frame is not None:
+            self.ndi_timer.start()
+        else:
+            self.ndi_timer.stop()
 
 class NDIlib_frame_type:
     NONE = 0
@@ -765,6 +856,15 @@ class MainWindow(QMainWindow):
         port_layout.addWidget(self.port_input)
         settings_layout.addLayout(port_layout)
         
+        # Web port settings
+        web_port_layout = QHBoxLayout()
+        web_port_layout.addWidget(QLabel("Web Port:"))
+        self.web_port_input = QSpinBox()
+        self.web_port_input.setRange(1024, 65535)
+        self.web_port_input.setValue(8181)
+        web_port_layout.addWidget(self.web_port_input)
+        settings_layout.addLayout(web_port_layout)
+        
         # Monitor selection
         monitor_layout = QHBoxLayout()
         monitor_layout.addWidget(QLabel("Display Monitor:"))
@@ -824,15 +924,6 @@ class MainWindow(QMainWindow):
         self.web_enabled = QCheckBox("Enable Web Streaming")
         self.web_enabled.stateChanged.connect(self.toggle_web_streaming)
         web_layout.addWidget(self.web_enabled)
-        
-        # Port settings
-        web_port_layout = QHBoxLayout()
-        web_port_layout.addWidget(QLabel("Web Port:"))
-        self.web_port_input = QSpinBox()
-        self.web_port_input.setRange(1024, 65535)
-        self.web_port_input.setValue(8181)
-        web_port_layout.addWidget(self.web_port_input)
-        web_layout.addLayout(web_port_layout)
         
         web_group.setLayout(web_layout)
         settings_layout.addWidget(web_group)
@@ -1734,22 +1825,8 @@ class MainWindow(QMainWindow):
     def toggle_web_streaming(self, state):
         """Toggle web streaming"""
         enabled = state == Qt.Checked
-        if enabled:
-            # Start web server in separate thread
-            def run_server():
-                # Create and set event loop for this thread
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
-                # Start server
-                start_server(port=self.web_port_input.value())
-                
-            self.server_thread = threading.Thread(target=run_server, daemon=True)
-            self.server_thread.start()
-            
-        # Enable streaming in display window
         self.display_window.enable_web_streaming(enabled)
-
+        
     def warning_sound_changed(self, text):
         """Handle warning sound selection change"""
         if text == "Custom...":
