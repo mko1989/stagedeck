@@ -1,0 +1,9 @@
+PyQt5
+python-osc
+fastapi
+uvicorn
+websockets
+python-multipart
+Pillow
+aiofiles
+pyinstaller

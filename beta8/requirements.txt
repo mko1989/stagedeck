@@ -1,0 +1,13 @@
+PyQt5==5.15.9
+PyQt5-Qt5==5.15.2
+PyQt5-sip==12.12.2
+python-osc==1.8.3
+fastapi
+uvicorn
+websockets
+python-multipart
+Pillow==10.0.0
+aiofiles
+pyinstaller
+numpy==1.24.3
+opencv-python==4.8.0.74

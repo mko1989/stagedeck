@@ -1,0 +1,83 @@
+name: Build StageDeck
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+        python-version: ['3.13']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Create icons
+      if: matrix.os == 'macos-latest'
+      run: |
+        # Check if icon.png exists
+        if [ -f icon.png ]; then
+          # Create iconset directory
+          mkdir icon.iconset
+          # Generate icons of different sizes
+          sips -z 16 16   icon.png --out icon.iconset/icon_16x16.png
+          sips -z 32 32   icon.png --out icon.iconset/icon_16x16@2x.png
+          sips -z 32 32   icon.png --out icon.iconset/icon_32x32.png
+          sips -z 64 64   icon.png --out icon.iconset/icon_32x32@2x.png
+          sips -z 128 128 icon.png --out icon.iconset/icon_128x128.png
+          sips -z 256 256 icon.png --out icon.iconset/icon_128x128@2x.png
+          sips -z 256 256 icon.png --out icon.iconset/icon_256x256.png
+          sips -z 512 512 icon.png --out icon.iconset/icon_256x256@2x.png
+          sips -z 512 512 icon.png --out icon.iconset/icon_512x512.png
+          # Create icns file
+          iconutil -c icns icon.iconset
+          rm -rf icon.iconset
+        fi
+
+    - name: Build with PyInstaller
+      run: |
+        pyinstaller stagedeck.spec
+
+    - name: Package Windows Build
+      if: matrix.os == 'windows-latest'
+      run: |
+        cd dist
+        7z a -tzip StageDeck-windows.zip StageDeck/
+
+    - name: Package macOS Build
+      if: matrix.os == 'macos-latest'
+      run: |
+        cd dist
+        zip -r StageDeck-macos.zip StageDeck.app/
+
+    - name: Upload Windows Artifact
+      if: matrix.os == 'windows-latest'
+      uses: actions/upload-artifact@v3
+      with:
+        name: StageDeck-windows
+        path: dist/StageDeck-windows.zip
+
+    - name: Upload macOS Artifact
+      if: matrix.os == 'macos-latest'
+      uses: actions/upload-artifact@v3
+      with:
+        name: StageDeck-macos
+        path: dist/StageDeck-macos.zip
