@@ -29,14 +29,13 @@ jobs:
       run: |
         brew install qt@5
         brew link qt@5
-        echo 'export PATH="/usr/local/opt/qt@5/bin:$PATH"' >> ~/.bash_profile
-        source ~/.bash_profile
+        echo "/usr/local/opt/qt@5/bin" >> $GITHUB_PATH
         
     - name: Install dependencies
+      shell: bash
       run: |
         python -m pip install --upgrade pip
-        # Install PyQt5 binary on Mac
-        if [ "$RUNNER_OS" == "macOS" ]; then
+        if [[ "$RUNNER_OS" == "macOS" ]]; then
           pip install --no-cache-dir PyQt5-Qt5==5.15.2 PyQt5-sip==12.11.0 PyQt5==5.15.9
         fi
         pip install -r requirements.txt
@@ -65,11 +64,13 @@ jobs:
         fi
 
     - name: Build with PyInstaller
+      shell: bash
       run: |
         pyinstaller stagedeck.spec
 
     - name: Package Windows Build
       if: matrix.os == 'windows-latest'
+      shell: pwsh
       run: |
         cd dist
         7z a -tzip StageDeck-windows.zip StageDeck/
