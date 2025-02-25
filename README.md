@@ -63,5 +63,7 @@ The display will update in real-time with minimal latency
 ## Development
 
 Main application: main.py
+
 Web server component: web_server.py
+
 PyInstaller spec: companion_viewer.spec
