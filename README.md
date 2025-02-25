@@ -72,4 +72,9 @@ When web streaming is enabled, access the display from any device on your networ
 
 - Main application: `main.py`
 - Web server component: `web_server.py`
+<<<<<<< HEAD
 - PyInstaller spec: `stagedeck.spec`
+=======
+- Installer creation: `create_installer.py`
+- PyInstaller spec: `companion_viewer.spec`
+>>>>>>> c0b2564a41945d9df9eb14ab6dfef9dbfc1de4a9

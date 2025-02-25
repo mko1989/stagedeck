@@ -21,11 +21,15 @@ def get_resource_path(relative_path):
     """Get absolute path to resource for both dev and PyInstaller"""
     if getattr(sys, 'frozen', False):
         # Running in a bundle
+<<<<<<< HEAD
         if sys.platform == 'darwin':
             # On macOS, resources are in the .app bundle
             base_path = os.path.join(sys._MEIPASS, 'Contents', 'Resources')
         else:
             base_path = sys._MEIPASS
+=======
+        base_path = sys._MEIPASS
+>>>>>>> c0b2564a41945d9df9eb14ab6dfef9dbfc1de4a9
     else:
         # Running in normal Python environment
         base_path = os.path.dirname(os.path.abspath(__file__))

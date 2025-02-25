@@ -1,28 +1,20 @@
-# Python
+# Build directories
+build/
+dist/
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
 
-# PyInstaller
-build/
-dist/
+# Beta versions
+beta*/
+
+# Old versions
+old/
+
+# Environment
+.env
+.venv/
+env/
+venv/
 
 # IDE
 .idea/
@@ -30,13 +22,12 @@ dist/
 *.swp
 *.swo
 
-# Environment
-.env
-.venv
-env/
-venv/
-ENV/
-
 # OS
 .DS_Store
 Thumbs.db
+
+# Temporary wav files
+wavs/
+
+# Companion Viewer specific
+"Companion Viewer build"/
