@@ -20,6 +20,7 @@ Option 1: Install from Executable (Recommended)
 Download the latest StageDeck Installer.zip
 Extract the zip file
 Run StageDeck.exe
+
 Option 2: Install from Source
 Clone this repository
 Install Python 3.9 or later
@@ -30,6 +31,8 @@ Run the application:
 bash
 python main.py
 
+For NDI usage NDI runtime is needed. You can grab it quickly from here:
+https://github.com/DistroAV/DistroAV/discussions/831
 
 ## Usage
 
