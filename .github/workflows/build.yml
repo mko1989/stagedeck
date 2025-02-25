@@ -52,7 +52,7 @@ jobs:
           # Set up pkg-config for SDL2
           export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:$PKG_CONFIG_PATH"
           # Install Mac dependencies with binary packages
-          pip install --only-binary :all: pygame==2.6.1 PyQt5==5.15.9 PyQt5-Qt5==5.15.2 PyQt5-sip==12.12.2
+          pip install --only-binary :all: pygame==2.6.1 PyQt5==5.15.11 PyQt5-Qt5==5.15.2 PyQt5-sip==12.12.2
           # Install remaining packages
           pip install --only-binary :all: Pillow==11.1.0 numpy==2.2.3
         fi

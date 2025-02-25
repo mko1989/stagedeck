@@ -1,4 +1,4 @@
-PyQt5==5.15.9; platform_system == "Windows"
+PyQt5==5.15.11; platform_system == "Windows"
 PyQt5-Qt5==5.15.2; platform_system == "Windows"
 PyQt5-sip==12.12.2; platform_system == "Windows"
 python-osc==1.8.3
