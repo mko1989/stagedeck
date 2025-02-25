@@ -24,9 +24,21 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         
+    - name: Install Qt dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install qt@5
+        brew link qt@5
+        echo 'export PATH="/usr/local/opt/qt@5/bin:$PATH"' >> ~/.bash_profile
+        source ~/.bash_profile
+        
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        # Install PyQt5 binary on Mac
+        if [ "$RUNNER_OS" == "macOS" ]; then
+          pip install --no-cache-dir PyQt5-Qt5==5.15.2 PyQt5-sip==12.11.0 PyQt5==5.15.9
+        fi
         pip install -r requirements.txt
         pip install pyinstaller
 
