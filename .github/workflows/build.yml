@@ -27,12 +27,17 @@ jobs:
     - name: Install system dependencies (macOS)
       if: matrix.os == 'macos-latest'
       run: |
+        # Install Qt5 and SDL2 dependencies
         brew install qt@5 sdl2 sdl2_image sdl2_mixer sdl2_ttf portmidi
-        brew link --force qt@5
+        
+        # Set up Qt5 environment
         echo "LDFLAGS=-L/opt/homebrew/opt/qt@5/lib" >> $GITHUB_ENV
         echo "CPPFLAGS=-I/opt/homebrew/opt/qt@5/include" >> $GITHUB_ENV
         echo "PKG_CONFIG_PATH=/opt/homebrew/opt/qt@5/lib/pkgconfig" >> $GITHUB_ENV
         echo "/opt/homebrew/opt/qt@5/bin" >> $GITHUB_PATH
+        
+        # Force link Qt5
+        brew link --force qt@5 || true
         
     - name: Install dependencies
       shell: bash
@@ -41,10 +46,12 @@ jobs:
         
         # Install platform-specific dependencies
         if [[ "$RUNNER_OS" == "Windows" ]]; then
-          pip install --only-binary :all: pygame==2.6.1
+          # Force binary installations for Windows
+          pip install --only-binary :all: pygame==2.6.1 Pillow==10.2.0
         elif [[ "$RUNNER_OS" == "macOS" ]]; then
-          # Ensure pkg-config can find SDL2
+          # Set up pkg-config for SDL2
           export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:$PKG_CONFIG_PATH"
+          # Install Mac dependencies
           pip install pygame==2.6.1
         fi
         
