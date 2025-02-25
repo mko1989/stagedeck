@@ -16,6 +16,7 @@ from PIL import Image
 from io import BytesIO
 import pygame.mixer
 import os
+from osc_client import OSCClient
 
 def get_resource_path(relative_path):
     """Get absolute path to resource for both dev and PyInstaller"""
@@ -416,7 +417,6 @@ class DisplayWindow(QMainWindow):
         # Remove existing field if it exists
         if field_id in self.fields:
             old_field = self.fields[field_id]
-            old_field.hide()
             old_field.deleteLater()
             
         # Create new field
@@ -424,6 +424,10 @@ class DisplayWindow(QMainWindow):
         self.fields[field_id] = field
         field.show()
         
+        # Send fields list to Companion if OSC client is enabled
+        if hasattr(self, 'osc_client_enabled') and self.osc_client_enabled:
+            self.osc_client.send_fields_list(self.fields)
+            
         # Force a repaint to clear any artifacts
         self.update()
         
@@ -432,10 +436,18 @@ class DisplayWindow(QMainWindow):
             self.fields[field_id].deleteLater()
             del self.fields[field_id]
             
+            # Send fields list to Companion if OSC client is enabled
+            if hasattr(self, 'osc_client_enabled') and self.osc_client_enabled:
+                self.osc_client.send_fields_list(self.fields)
+            
     def update_field(self, field_id, value):
         if field_id in self.fields:
             self.fields[field_id].content.text = value
             self.fields[field_id].update()
+            
+            # Send field update to Companion if OSC client is enabled
+            if hasattr(self, 'osc_client_enabled') and self.osc_client_enabled:
+                self.osc_client.send_field_update(field_id, value)
             
     def update_background(self):
         if not self.ndi_enabled:
@@ -795,14 +807,22 @@ class NDIReceiver:
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("StageDeck Beta")
+        self.setWindowTitle("StageDeck Beta - Control Panel")
+        self.setGeometry(100, 100, 800, 600)
+        
+        # Initialize display window
         self.display_window = DisplayWindow()
         self.display_window.show()
         
-        # Initialize variables
+        # Initialize OSC client for sending data to Bitfocus Companion
+        self.osc_client = OSCClient()
+        self.osc_client_enabled = False
+        
+        # Initialize OSC server variables
+        self.osc_port = 8000
         self.server = None
         self.server_thread = None
-        self.osc_port = 9191
+        
         self.web_port = 8181
         
         # Initialize timer variables
@@ -849,15 +869,56 @@ class MainWindow(QMainWindow):
         tabs.addTab(settings_tab, "Settings")
         settings_layout = QVBoxLayout(settings_tab)
         
-        # Port settings
+        # OSC Server settings
+        osc_group = QGroupBox("OSC Server Settings")
+        osc_layout = QVBoxLayout(osc_group)
+        
         port_layout = QHBoxLayout()
         port_layout.addWidget(QLabel("OSC Port:"))
         self.port_input = QSpinBox()
         self.port_input.setRange(1024, 65535)
-        self.port_input.setValue(9191)
+        self.port_input.setValue(8000)
         self.port_input.valueChanged.connect(self.update_port)
         port_layout.addWidget(self.port_input)
-        settings_layout.addLayout(port_layout)
+        osc_layout.addLayout(port_layout)
+        
+        settings_layout.addWidget(osc_group)
+        
+        # OSC Client settings for Bitfocus Companion
+        companion_group = QGroupBox("Bitfocus Companion Integration")
+        companion_layout = QVBoxLayout(companion_group)
+        
+        # Enable/disable OSC client
+        enable_layout = QHBoxLayout()
+        enable_layout.addWidget(QLabel("Enable OSC Client:"))
+        self.enable_osc_client_checkbox = QCheckBox()
+        self.enable_osc_client_checkbox.setChecked(False)
+        self.enable_osc_client_checkbox.stateChanged.connect(self.toggle_osc_client)
+        enable_layout.addWidget(self.enable_osc_client_checkbox)
+        companion_layout.addLayout(enable_layout)
+        
+        # IP address
+        ip_layout = QHBoxLayout()
+        ip_layout.addWidget(QLabel("Companion IP:"))
+        self.companion_ip_input = QLineEdit("127.0.0.1")
+        ip_layout.addWidget(self.companion_ip_input)
+        companion_layout.addLayout(ip_layout)
+        
+        # Port
+        companion_port_layout = QHBoxLayout()
+        companion_port_layout.addWidget(QLabel("Companion OSC Port:"))
+        self.companion_port_input = QSpinBox()
+        self.companion_port_input.setRange(1024, 65535)
+        self.companion_port_input.setValue(9000)
+        companion_port_layout.addWidget(self.companion_port_input)
+        companion_layout.addLayout(companion_port_layout)
+        
+        # Apply button
+        apply_button = QPushButton("Apply Companion Settings")
+        apply_button.clicked.connect(self.apply_companion_settings)
+        companion_layout.addWidget(apply_button)
+        
+        settings_layout.addWidget(companion_group)
         
         # Web port settings
         web_port_layout = QHBoxLayout()
@@ -1485,6 +1546,10 @@ class MainWindow(QMainWindow):
         )
         self.save_config()
         
+        # Send field update to Companion if OSC client is enabled
+        if hasattr(self, 'osc_client_enabled') and self.osc_client_enabled:
+            self.osc_client.send_field_update(field_id, self.display_window.fields[field_id].content.text)
+            
     def delete_field(self):
         current = self.fields_list.currentItem()
         if not current:
@@ -1759,6 +1824,14 @@ class MainWindow(QMainWindow):
             self.overtime += 1
             self.update_timer_display()
             
+        # Send timer update to Companion if OSC client is enabled
+        if self.osc_client_enabled:
+            self.osc_client.send_timer_update(
+                int(self.remaining_time), 
+                self.timer_running,
+                self.enable_warning.isChecked() and self.remaining_time <= self.warning_time.value()
+            )
+            
     def blink_timer_text(self):
         """Blink timer text when time is up"""
         if not self.enable_end_warning.isChecked():
@@ -1956,6 +2029,17 @@ class MainWindow(QMainWindow):
             timer_field = self.display_window.fields["timer"]
             self.blink_visible = not self.blink_visible
             timer_field.setVisible(self.blink_visible)
+            
+    def toggle_osc_client(self, state):
+        """Toggle OSC client"""
+        if state == Qt.Checked:
+            self.osc_client_enabled = True
+        else:
+            self.osc_client_enabled = False
+            
+    def apply_companion_settings(self):
+        """Apply Companion settings"""
+        self.osc_client.set_target(self.companion_ip_input.text(), self.companion_port_input.value())
         
 if __name__ == '__main__':
     app = QApplication(sys.argv)
