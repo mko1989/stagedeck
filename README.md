@@ -1,3 +1,5 @@
+#The project is abandond now as I found other ways to achive the funcionalities, easier and more stable. 
+
 # Introduction
 
 StageDeck is a versatile stage display application designed for live events and broadcasts. It supports NDI input and web streaming, making it an ideal solution for dynamic stage displays and real-time updates.
