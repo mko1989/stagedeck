@@ -1,4 +1,4 @@
-#The project is abandond now as I found other ways to achive the funcionalities, easier and more stable. 
+# The project is abandond now as I found other ways to achive the funcionalities, easier and more stable. 
 
 # Introduction
 
